@@ -20,8 +20,8 @@ podTemplate(
                           command: 'cat', 
                           args: '',
                           envVars: [
-                            containerEnvVar(key: POSTGRES_PASSWORD', value: 'postgres'),
-                            containerEnvVar(key: POSTGRES_USER', value: 'postgres'),
+                            containerEnvVar(key: 'POSTGRES_PASSWORD', value: 'postgres'),
+                            containerEnvVar(key: 'POSTGRES_USER', value: 'postgres'),
                           ]),
         containerTemplate(name: 'docker-build', image: 'docker:1.12.3-dind', privileged: true)
     ])  {
