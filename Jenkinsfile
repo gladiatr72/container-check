@@ -2,10 +2,10 @@
 
 podTemplate(
     name: 'whee', 
-    cloud: 'default', 
-    label: 'image-builder', 
+    cloud: 'kubernetes', 
+    label: 'image-builder-maven-pg', 
     namespace: 'ci',
-    inheritFrom: 'jenkins-slave-pod', 
+    inheritFrom: 'image-builder', 
     containers: [
         containerTemplate(name: 'jnlp', 
                           image: 'jenkinsci/jnlp-slave:2.62-alpine', 
@@ -13,38 +13,76 @@ podTemplate(
                              containerEnvVar(key: 'JENKINS_NAME', value: '${computer.name}'),
                              containerEnvVar(key: 'JENKINS_SECRET', value: '${computer.jnlpmac}')
                           ]),
-        containerTemplate(name: 'python', image: 'python:2.7', ttyEnabled: true, command: 'cat', args: ''),
+        containerTemplate(name: 'maven', image: 'maven:3.3.9-jdk-8-alpine', ttyEnabled: true, command: 'cat', args: ''),
+        containerTemplate(name: 'postgres', 
+                          image: 'postgres:9.5-alpine', 
+                          ttyEnabled: true, 
+                          command: 'cat', 
+                          args: ''
+                          envVars: [
+                            containerEnvVar(key: POSTGRES_PASSWORD', value: 'postgres'),
+                            containerEnvVar(key: POSTGRES_USER', value: 'postgres'),
+                          ]),
         containerTemplate(name: 'docker-build', image: 'docker:1.12.3-dind', privileged: true)
-    ]) 
+    ])  {
 
 
-node('image-builder') {
+    node('image-builder') {
 
-    stage("checkout") {
-        checkout scm
-    }
+        def commitAuthorEmail = sh(script: "git show -q --format='%aE' HEAD", returnStdout: true).trim()
+        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+        def shortCommit = gitCommit.take(6)
 
-    stage('docker image build') {
-        echo 'things built here'
-        stage('build container image') {
-            container('docker-build') {
-                sh """
-                cd /home/jenkins/workspace/${JOB_NAME}
-                docker build --rm -t kube-registry.kube-system:5000/efk-demo-flask:${BUILD_NUMBER} .
-                docker build --rm -t kube-registry.kube-system:5000/efk-demo-flask:latest .
-                """
-                echo 'the build should be complete at this point'
+        def pom readMavenPom file: 'pom.xml' 
 
-                stage('push container to registry')
+        def version = pom.version.replace("SNAPSHOT", "")
+        version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
 
-                sh """
-                cd /home/jenkins/workspace/${JOB_NAME}
-                docker push kube-registry.kube-system:5000/efk-demo-flask:${BUILD_NUMBER} 
-                docker push kube-registry.kube-system:5000/efk-demo-flask:latest
-                """
+        version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
+
+        stage("checkout") {
+            checkout scm
+        }
+
+        state('test-db-setup') {
+            container('postgres') {
+
+        }
+        stage('project build and test') {
+            try {
+                sh "mvn -DreleaseVersion=${version} -DdevelopmentVersion=${pom.version} -DpushChanges=false -DlocalCheckout=false -DpreparationGoals=initialize -Dgoals=package release:prepare release:perform -B -P skip-tests"
+                }
+                stage('unit tests') {
+                    junit 'target/checkout/**/target/surefire-reports/*.xml'
+                }
+            } catch(e) {
+                currentBuild.result = "FAILED"
+                send_email_notification(commitAuthorEmail)
+                throw e
+            }
+        }
+
+        stage('docker image build') {
+            echo 'things built here'
+            stage('build container image') {
+                container('docker-build') {
+                    sh """
+                    cd /home/jenkins/workspace/${JOB_NAME}
+                    docker build --rm -t kube-registry.kube-system:5000/${JOB_NAME}:${BUILD_NUMBER} .
+                    docker build --rm -t kube-registry.kube-system:5000/${JOB_NAME}:latest .
+                    """
+                    echo 'the build should be complete at this point'
+
+                    stage('push container to registry')
+
+                    sh """
+                    cd /home/jenkins/workspace/${JOB_NAME}
+                    docker push kube-registry.kube-system:5000/${JOB_NAME}:${BUILD_NUMBER} 
+                    docker push kube-registry.kube-system:5000/${JOB_NAME}:latest
+                    """
+                }
             }
         }
     }
 }
-//}
 
