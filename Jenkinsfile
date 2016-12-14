@@ -33,7 +33,7 @@ podTemplate(
         def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
         def shortCommit = gitCommit.take(6)
 
-        def pom readMavenPom file: 'pom.xml' 
+        def pom = readMavenPom file: 'pom.xml' 
 
         def version = pom.version.replace("SNAPSHOT", "")
         version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
