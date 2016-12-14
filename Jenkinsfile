@@ -29,17 +29,7 @@ podTemplate(
 
     node('image-builder') {
 
-        def commitAuthorEmail = sh(script: "git show -q --format='%aE' HEAD", returnStdout: true).trim()
-        def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
-        def shortCommit = gitCommit.take(6)
-
-        def pom = readMavenPom file: 'pom.xml' 
-
-        def version = pom.version.replace("SNAPSHOT", "")
-        version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
-
-        version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
-
+        
         stage("checkout") {
             checkout scm
 
@@ -53,22 +43,24 @@ podTemplate(
             version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
         }
 
-        state('test-db-setup') {
+        state('builds it, tests it') {
             container('postgres') {
                 echo 'preload the pg test bits here'
             }
-        }
-        stage('project build and test') {
-            try {
-                sh "mvn -DreleaseVersion=${version} -DdevelopmentVersion=${pom.version} -DpushChanges=false -DlocalCheckout=false -DpreparationGoals=initialize -Dgoals=package release:prepare release:perform -B -P skip-tests"
-                stage('unit tests') {
-                    junit 'target/checkout/**/target/surefire-reports/*.xml'
+            container('maven') {
+                stage('project build') {
+                    try {
+                        sh "mvn -DreleaseVersion=${version} -DdevelopmentVersion=${pom.version} -DpushChanges=false -DlocalCheckout=false -DpreparationGoals=initialize -Dgoals=package release:prepare release:perform -B -P skip-tests"
+                        stage('unit tests') {
+                            junit 'target/checkout/**/target/surefire-reports/*.xml'
+                        }
+                    }
+                    catch(e) {
+                        currentBuild.result = "FAILED"
+                        send_email_notification(commitAuthorEmail)
+                        throw e
+                    }
                 }
-            }
-            catch(e) {
-                currentBuild.result = "FAILED"
-                send_email_notification(commitAuthorEmail)
-                throw e
             }
         }
 
