@@ -51,11 +51,11 @@ podTemplate(
         stage('project build and test') {
             try {
                 sh "mvn -DreleaseVersion=${version} -DdevelopmentVersion=${pom.version} -DpushChanges=false -DlocalCheckout=false -DpreparationGoals=initialize -Dgoals=package release:prepare release:perform -B -P skip-tests"
-                }
                 stage('unit tests') {
                     junit 'target/checkout/**/target/surefire-reports/*.xml'
                 }
-            } catch(e) {
+            }
+            catch(e) {
                 currentBuild.result = "FAILED"
                 send_email_notification(commitAuthorEmail)
                 throw e
