@@ -46,7 +46,8 @@ podTemplate(
 
         state('test-db-setup') {
             container('postgres') {
-
+                echo 'preload the pg test bits here'
+            }
         }
         stage('project build and test') {
             try {
@@ -84,5 +85,5 @@ podTemplate(
             }
         }
     }
-}
+    }
 
