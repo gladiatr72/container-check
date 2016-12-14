@@ -42,6 +42,15 @@ podTemplate(
 
         stage("checkout") {
             checkout scm
+
+            def commitAuthorEmail = sh(script: "git show -q --format='%aE' HEAD", returnStdout: true).trim()
+            def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+            def shortCommit = gitCommit.take(6)
+
+            def pom = readMavenPom file: 'pom.xml' 
+
+            def version = pom.version.replace("SNAPSHOT", "")
+            version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
         }
 
         state('test-db-setup') {
