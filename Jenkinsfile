@@ -18,7 +18,7 @@ podTemplate(
                           image: 'postgres:9.5-alpine', 
                           ttyEnabled: true, 
                           command: 'cat', 
-                          args: ''
+                          args: '',
                           envVars: [
                             containerEnvVar(key: POSTGRES_PASSWORD', value: 'postgres'),
                             containerEnvVar(key: POSTGRES_USER', value: 'postgres'),
