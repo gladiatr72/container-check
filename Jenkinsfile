@@ -33,6 +33,8 @@ podTemplate(
         stage("checkout") {
             checkout scm
 
+            sh 'cd /home/jenkins/workspace/${JOB_NAME}'
+
             def commitAuthorEmail = sh(script: "git show -q --format='%aE' HEAD", returnStdout: true).trim()
             def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
             def shortCommit = gitCommit.take(6)
@@ -86,5 +88,5 @@ podTemplate(
             }
         }
     }
-    }
+}
 
