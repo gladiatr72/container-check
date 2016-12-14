@@ -36,12 +36,13 @@ podTemplate(
             sh 'cd /home/jenkins/workspace/${JOB_NAME}'
 
             def commitAuthorEmail = sh(script: "git show -q --format='%aE' HEAD", returnStdout: true).trim()
+
             def gitCommit = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
             def shortCommit = gitCommit.take(6)
 
             sleep time: 10, unit: 'MINUTES'
 
-            def pom = readMavenPom file: 'pom.xml' 
+            def pom = readMavenPom file: '/home/jenkins/workspace/${JOB_NAME}/pom.xml'
 
             def version = pom.version.replace("SNAPSHOT", "")
             version = VersionNumber(version + '${BUILD_DATE_FORMATTED, "yyyyMMdd"}-${BUILDS_TODAY}')
